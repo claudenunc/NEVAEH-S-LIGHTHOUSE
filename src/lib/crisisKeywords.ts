@@ -73,7 +73,14 @@ export function shouldEscalate(current: RiskLevel, incoming: RiskLevel): RiskLev
   return order.indexOf(incoming) > order.indexOf(current) ? incoming : current
 }
 
-export const CRISIS_RESOURCES = [
+export interface CrisisResource {
+  name: string
+  contact: string
+  href: string
+  always?: boolean
+}
+
+export const CRISIS_RESOURCES: ReadonlyArray<CrisisResource> = [
   { name: '988 Suicide & Crisis Lifeline', contact: 'Call or text 988', href: 'tel:988', always: true },
   { name: 'Crisis Text Line', contact: 'Text HOME to 741741', href: 'sms:741741?body=HOME', always: true },
   { name: '911', contact: 'Immediate danger', href: 'tel:911', always: true },
@@ -84,4 +91,4 @@ export const CRISIS_RESOURCES = [
   { name: 'National Domestic Violence Hotline', contact: '1-800-799-7233', href: 'tel:18007997233' },
   { name: 'RAINN Sexual Assault Hotline', contact: '1-800-656-4673', href: 'tel:18006564673' },
   { name: 'Childhelp (child abuse)', contact: '1-800-422-4453', href: 'tel:18004224453' }
-] as const
+]
