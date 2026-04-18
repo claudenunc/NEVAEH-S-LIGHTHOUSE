@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
@@ -30,7 +30,11 @@ export default function Landing() {
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {user ? (
-            <Link to="/session" className="btn-primary">Continue your session</Link>
+            <>
+              <Link to="/session" className="btn-primary">Continue your session</Link>
+              <Link to="/journey" className="btn-ghost">Your journey</Link>
+              <button onClick={() => signOut()} className="btn-ghost text-text-muted">Sign out</button>
+            </>
           ) : (
             <>
               <Link to="/login" className="btn-primary">Begin</Link>
@@ -38,6 +42,12 @@ export default function Landing() {
             </>
           )}
         </div>
+
+        {user && (
+          <p className="text-xs text-text-muted">
+            Signed in as {user.email}
+          </p>
+        )}
 
         <p className="text-xs text-text-muted max-w-md mx-auto">
           If you're in immediate danger, call <a href="tel:988" className="underline">988</a> (call or text) or text HOME to <a href="sms:741741?body=HOME" className="underline">741741</a>.
