@@ -98,7 +98,8 @@ export default function Session() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authSession.access_token}`
+          Authorization: `Bearer ${authSession.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
         },
         body: JSON.stringify({
           session_id: sessId,
@@ -163,7 +164,8 @@ export default function Session() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authSession.access_token}`
+          Authorization: `Bearer ${authSession.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
         },
         body: JSON.stringify({ session_id: sessionId })
       })

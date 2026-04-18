@@ -9,12 +9,16 @@ export default function CrisisButton() {
   // Don't show on /crisis page (it IS the crisis page)
   if (location.pathname === '/crisis') return null
 
+  // On /session the page has its own fixed input bar — position above it so they don't collide.
+  const isSession = location.pathname === '/session'
+  const position = isSession ? 'bottom-20 right-3 sm:bottom-24 sm:right-6' : 'bottom-4 right-4'
+
   return (
     <>
       <button
         aria-label="Emergency crisis resources"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 rounded-full glass px-4 py-2 text-xs text-text-secondary hover:text-accent-warm hover:border-accent-warm/40 transition-all"
+        className={`fixed ${position} z-40 rounded-full glass px-3 py-2 text-xs text-text-secondary hover:text-accent-warm hover:border-accent-warm/40 transition-all shadow-lg`}
       >
         Need help now?
       </button>
