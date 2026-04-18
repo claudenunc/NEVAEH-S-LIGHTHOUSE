@@ -1,10 +1,13 @@
-// NEVAEH'S LIGHTHOUSE — /chat Edge Function (v13 — crisis-on-arrival prompt + expanded scanner)
+// NEVAEH'S LIGHTHOUSE — /chat Edge Function (v16 — server-side scanner fallback)
 // Receives user message → saves → fetches memory → calls Claude → saves response → returns
 // Fires Telegram alert to Nathan on orange/red risk levels (fire-and-forget).
+// v16: server-side crisis scan runs in parallel with client scan; max() wins.
+// Defense in depth — stale browser cache can't silence BEACON.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { buildSystemPrompt } from '../_shared/nevaeh_prompt.ts'
 import { sendTelegramAlert } from '../_shared/telegram.ts'
+import { serverScan, maxRisk } from '../_shared/crisis_scanner.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,7 +62,16 @@ Deno.serve(async (req: Request) => {
     const body = await req.json()
     const session_id: string = body.session_id
     const user_message: string | null = body.user_message ?? null
-    const client_risk: RiskLevel = body.client_risk_level ?? 'none'
+    const client_risk_raw: RiskLevel = body.client_risk_level ?? 'none'
+
+    // Server-side fallback scan. Defense in depth — if the client browser
+    // is running stale JS (no new patterns), we still catch crisis signals here.
+    // The higher of (client, server) wins; false-negatives cost lives.
+    const serverRisk = user_message ? serverScan(user_message).level : 'none'
+    const client_risk: RiskLevel = maxRisk(client_risk_raw, serverRisk)
+    if (serverRisk !== 'none' && serverRisk !== client_risk_raw) {
+      console.warn(`server-scan upgraded risk: client=${client_risk_raw} server=${serverRisk} -> ${client_risk}`)
+    }
 
     if (!session_id) return jsonErr(400, 'session_id required')
 
@@ -88,7 +100,10 @@ Deno.serve(async (req: Request) => {
         await supabase.from('crisis_log').insert({
           user_id: userId, session_id, message_id: savedMsg.id,
           signal_type: 'explicit', signal_level: client_risk,
-          signals_detected: [`client_scan:${client_risk}`], confidence: 0.85,
+          signals_detected: client_risk_raw === client_risk
+            ? [`client_scan:${client_risk}`]
+            : [`server_scan_fallback:${client_risk}`, `client_sent:${client_risk_raw}`],
+          confidence: 0.85,
           trigger_content: user_message.slice(0, 2000),
           action_taken: client_risk === 'red' ? 'red_protocol_activated' : 'safety_checkin_' + client_risk,
           resources_offered: client_risk === 'red' ? ['988','crisis_text_line','911'] : ['988','crisis_text_line']
