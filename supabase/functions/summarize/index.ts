@@ -14,6 +14,25 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'
 
+function decodeJwtSub(authHeader: string): { userId: string | null; reason?: string } {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const parts = token.split('.')
+    if (parts.length !== 3) return { userId: null, reason: 'malformed_jwt' }
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const pad = '='.repeat((4 - (payloadB64.length % 4)) % 4)
+    const payload = JSON.parse(atob(payloadB64 + pad))
+    const role = payload.role
+    if (role === 'anon' || role === 'service_role') return { userId: null, reason: 'not_a_user_token' }
+    const sub = payload.sub
+    if (!sub || typeof sub !== 'string') return { userId: null, reason: 'no_sub_claim' }
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return { userId: null, reason: 'expired' }
+    return { userId: sub }
+  } catch (e) {
+    return { userId: null, reason: 'decode_error:' + (e instanceof Error ? e.message : String(e)) }
+  }
+}
+
 const SUMMARIZER_PROMPT = `You are the session summarizer for NEVAEH'S LIGHTHOUSE. You read the full conversation between NEVAEH (an AI emotional companion) and a user, and output a structured JSON summary.
 
 Your job: capture what happened emotionally, thematically, and therapeutically — not just what was said. Write human summaries that a future NEVAEH can use to continue the relationship.
@@ -50,11 +69,14 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return jsonErr(401, 'Missing authorization')
 
+    const { userId, reason } = decodeJwtSub(authHeader)
+    if (!userId) {
+      console.warn('summarize auth reject', reason)
+      return jsonErr(401, 'Invalid session: ' + (reason ?? 'unknown'))
+    }
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-    if (userErr || !user) return jsonErr(401, 'Invalid session')
+    const user = { id: userId }
 
     const { session_id } = await req.json()
     if (!session_id) return jsonErr(400, 'session_id required')

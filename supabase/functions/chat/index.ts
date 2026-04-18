@@ -17,21 +17,43 @@ const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'
 
 type RiskLevel = 'none' | 'yellow' | 'orange' | 'red'
 
+function decodeJwtSub(authHeader: string): { userId: string | null; reason?: string } {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const parts = token.split('.')
+    if (parts.length !== 3) return { userId: null, reason: 'malformed_jwt' }
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const pad = '='.repeat((4 - (payloadB64.length % 4)) % 4)
+    const payload = JSON.parse(atob(payloadB64 + pad))
+    const role = payload.role
+    if (role === 'anon' || role === 'service_role') return { userId: null, reason: 'not_a_user_token' }
+    const sub = payload.sub
+    if (!sub || typeof sub !== 'string') return { userId: null, reason: 'no_sub_claim' }
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return { userId: null, reason: 'expired' }
+    return { userId: sub }
+  } catch (e) {
+    return { userId: null, reason: 'decode_error:' + (e instanceof Error ? e.message : String(e)) }
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Auth: extract user from JWT
+    // Auth: extract user from JWT (gateway already verified signature when verify_jwt=true)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return jsonErr(401, 'Missing authorization')
 
+    const { userId, reason } = decodeJwtSub(authHeader)
+    if (!userId) {
+      console.warn('chat auth reject', reason)
+      return jsonErr(401, 'Invalid session: ' + (reason ?? 'unknown'))
+    }
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-    if (userErr || !user) return jsonErr(401, 'Invalid session')
+    const user = { id: userId }
 
     const body = await req.json()
     const session_id: string = body.session_id
