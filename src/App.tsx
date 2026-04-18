@@ -7,6 +7,7 @@ import Journey from './pages/Journey'
 import Crisis from './pages/Crisis'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import Settings from './pages/Settings'
 import CrisisButton from './components/CrisisButton'
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -36,6 +37,10 @@ export default function App() {
           <Route
             path="/journey"
             element={<ProtectedRoute><Journey /></ProtectedRoute>}
+          />
+          <Route
+            path="/settings"
+            element={<ProtectedRoute><Settings /></ProtectedRoute>}
           />
           <Route path="/crisis" element={<Crisis />} />
           <Route path="/terms" element={<Terms />} />

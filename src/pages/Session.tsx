@@ -194,6 +194,7 @@ export default function Session() {
         </Link>
         <nav className="flex items-center gap-2 text-xs">
           <Link to="/journey" className="btn-ghost">Journey</Link>
+          <Link to="/settings" className="btn-ghost">Settings</Link>
           <button onClick={handleEnd} disabled={ending || messages.length < 2} className="btn-ghost">
             {ending ? 'Closing...' : 'End session'}
           </button>

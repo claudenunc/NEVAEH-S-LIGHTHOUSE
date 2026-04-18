@@ -55,6 +55,7 @@ export default function Journey() {
         </Link>
         <nav className="flex items-center gap-2 text-xs">
           <Link to="/session" className="btn-ghost">Session</Link>
+          <Link to="/settings" className="btn-ghost">Settings</Link>
           <button onClick={() => signOut()} className="btn-ghost text-text-muted">Sign out</button>
         </nav>
       </header>

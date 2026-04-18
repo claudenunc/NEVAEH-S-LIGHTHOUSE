@@ -66,9 +66,9 @@ export default function Privacy() {
         <section className="space-y-3">
           <h2 className="font-display text-xl text-accent-primary">5. Retention</h2>
           <ul className="list-disc list-inside text-text-secondary space-y-2 leading-relaxed">
-            <li><strong className="text-text-primary">Conversations:</strong> kept for as long as your account is active, so NEVAEH can remember. Delete your account and they are removed.</li>
-            <li><strong className="text-text-primary">Crisis events (RED tier):</strong> retained for up to 7 years for safety continuity and any clinical/legal follow-up. This is standard for crisis-related records.</li>
+            <li><strong className="text-text-primary">Conversations:</strong> kept while your account is active, so NEVAEH can remember. Delete your account and they are removed.</li>
             <li><strong className="text-text-primary">Session summaries:</strong> retained while your account is active.</li>
+            <li><strong className="text-text-primary">Crisis events:</strong> retained while your account is active so NEVAEH can ask about your safety sooner next time you come back. <strong className="text-text-primary">When you delete your account, your crisis events are deleted with everything else.</strong> If you ever want us to keep a record for your own clinical continuity (to share with a therapist, for instance), email Nathan and we'll work it out with you directly — nothing is kept without your say-so.</li>
           </ul>
         </section>
 
@@ -77,7 +77,8 @@ export default function Privacy() {
           <ul className="list-disc list-inside text-text-secondary space-y-2 leading-relaxed">
             <li><strong className="text-text-primary">Access:</strong> email us to request a copy of all your data.</li>
             <li><strong className="text-text-primary">Correct:</strong> ask NEVAEH to remember or forget specific things; tell us if something we have is wrong.</li>
-            <li><strong className="text-text-primary">Delete:</strong> email <a href="mailto:nathanmichel@nvvisions.com" className="text-accent-secondary underline">nathanmichel@nvvisions.com</a> to delete your account and all associated data (crisis logs excepted, per above).</li>
+            <li><strong className="text-text-primary">Delete (self-serve):</strong> go to <Link to="/settings" className="text-accent-secondary underline">Settings</Link> while signed in and use the "Delete my account" button. This removes your account and all associated data — conversations, session summaries, identity graph, growth arc, and crisis events. No exceptions, no "we'll keep a little." Gone.</li>
+            <li><strong className="text-text-primary">Delete (manual):</strong> if the self-serve flow isn't working or you need help, email <a href="mailto:nathanmichel@nvvisions.com" className="text-accent-secondary underline">nathanmichel@nvvisions.com</a>.</li>
             <li><strong className="text-text-primary">Export:</strong> ask for a copy of your conversation history in machine-readable form.</li>
           </ul>
         </section>
