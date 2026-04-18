@@ -12,6 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   if (user) {
     navigate('/session', { replace: true })
@@ -21,8 +22,13 @@ export default function Login() {
     e.preventDefault()
     setError(null)
     setNotice(null)
-    setLoading(true)
 
+    if (mode === 'signup' && !acceptedTerms) {
+      setError('Please acknowledge the Terms and Privacy Policy to continue.')
+      return
+    }
+
+    setLoading(true)
     const { error: err } = mode === 'signin'
       ? await signIn(email, password)
       : await signUp(email, password, displayName.trim() || undefined)
@@ -98,6 +104,21 @@ export default function Login() {
             />
           </div>
 
+          {mode === 'signup' && (
+            <label className="flex items-start gap-2 text-xs text-text-secondary cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 accent-accent-primary"
+                aria-describedby="terms-desc"
+              />
+              <span id="terms-desc">
+                I understand NEVAEH is an AI companion and <strong className="text-text-primary">not a therapist or emergency service</strong>. I've read the <Link to="/terms" target="_blank" className="text-accent-secondary underline">Terms</Link> and <Link to="/privacy" target="_blank" className="text-accent-secondary underline">Privacy Policy</Link>. If I'm in crisis I will also reach out to <a href="tel:988" className="text-accent-secondary underline">988</a> or <a href="tel:911" className="text-accent-secondary underline">911</a>.
+              </span>
+            </label>
+          )}
+
           {error && (
             <p className="text-accent-warm text-sm" role="alert">{error}</p>
           )}
@@ -119,7 +140,7 @@ export default function Login() {
         </form>
 
         <p className="text-xs text-text-muted text-center">
-          By continuing you acknowledge NEVAEH is an AI companion, not a therapist, and not a substitute for emergency services. If you're in danger, call <a href="tel:988" className="underline">988</a>.
+          <Link to="/terms" className="underline">Terms</Link> · <Link to="/privacy" className="underline">Privacy</Link> · <Link to="/crisis" className="underline">Crisis resources</Link>
         </p>
       </div>
     </div>
