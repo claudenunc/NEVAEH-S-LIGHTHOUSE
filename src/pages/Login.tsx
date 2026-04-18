@@ -8,6 +8,7 @@ export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -22,8 +23,9 @@ export default function Login() {
     setNotice(null)
     setLoading(true)
 
-    const fn = mode === 'signin' ? signIn : signUp
-    const { error: err } = await fn(email, password)
+    const { error: err } = mode === 'signin'
+      ? await signIn(email, password)
+      : await signUp(email, password, displayName.trim() || undefined)
     setLoading(false)
 
     if (err) {
@@ -52,6 +54,22 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4" noValidate>
+          {mode === 'signup' && (
+            <div>
+              <label htmlFor="displayName" className="block text-sm text-text-secondary mb-2">What should NEVAEH call you?</label>
+              <input
+                id="displayName"
+                type="text"
+                autoComplete="given-name"
+                required
+                maxLength={40}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="input-field"
+                placeholder="Your first name, or whatever you'd like"
+              />
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm text-text-secondary mb-2">Email</label>
             <input
