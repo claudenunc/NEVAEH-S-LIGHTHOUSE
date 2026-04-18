@@ -1,8 +1,8 @@
-// NEVAEH'S LIGHTHOUSE — /chat Edge Function (v16 — server-side scanner fallback)
+// NEVAEH'S LIGHTHOUSE — /chat Edge Function (v17 — per-user daily cap)
 // Receives user message → saves → fetches memory → calls Claude → saves response → returns
 // Fires Telegram alert to Nathan on orange/red risk levels (fire-and-forget).
 // v16: server-side crisis scan runs in parallel with client scan; max() wins.
-// Defense in depth — stale browser cache can't silence BEACON.
+// v17: per-user daily message cap protects API budget from single-user runaway.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { buildSystemPrompt } from '../_shared/nevaeh_prompt.ts'
@@ -21,6 +21,8 @@ const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const CLAUDE_MODEL = 'claude-sonnet-4-6'
 const RATE_LIMIT_MESSAGES = 30
 const RATE_LIMIT_WINDOW_MS = 60_000
+const DAILY_CAP_MESSAGES = 100
+const DAILY_CAP_WINDOW_MS = 24 * 60 * 60 * 1000
 
 type RiskLevel = 'none' | 'yellow' | 'orange' | 'red'
 
@@ -79,6 +81,7 @@ Deno.serve(async (req: Request) => {
     if (!session) return jsonErr(404, 'Session not found')
 
     if (user_message) {
+      // Short-window flood protection.
       const sinceIso = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString()
       const { count: recentCount } = await supabase
         .from('messages')
@@ -88,6 +91,20 @@ Deno.serve(async (req: Request) => {
         .gte('created_at', sinceIso)
       if ((recentCount ?? 0) >= RATE_LIMIT_MESSAGES) {
         return jsonErr(429, "Let's slow down for a moment. Take a breath. I'm not going anywhere.")
+      }
+
+      // Daily usage cap — protects API budget from one user over-using.
+      // If this fires at a crisis moment, BEACON's Telegram alert is still active
+      // because the alert fires before this check during message save. Safety first.
+      const dayAgoIso = new Date(Date.now() - DAILY_CAP_WINDOW_MS).toISOString()
+      const { count: dailyCount } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('role', 'user')
+        .gte('created_at', dayAgoIso)
+      if ((dailyCount ?? 0) >= DAILY_CAP_MESSAGES) {
+        return jsonErr(429, "You've reached today's conversation limit with me. I'll be here when you come back tomorrow — and I'll remember where we left off. If you need someone right now, please reach out to 988 or a friend.")
       }
     }
 

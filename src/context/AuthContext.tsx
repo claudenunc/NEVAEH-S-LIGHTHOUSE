@@ -43,6 +43,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  async function notifyAuthEvent(event: 'signup' | 'signin') {
+    // Fire-and-forget — never block the user or bubble errors.
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (!currentSession) return
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-event`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentSession.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ event })
+      })
+    } catch {
+      // Notification failures must never break sign-in/sign-up.
+    }
+  }
+
   async function signUp(
     email: string,
     password: string,
@@ -60,11 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     })
+    if (!error) notifyAuthEvent('signup')
     return { error: error?.message ?? null }
   }
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error) notifyAuthEvent('signin')
     return { error: error?.message ?? null }
   }
 
