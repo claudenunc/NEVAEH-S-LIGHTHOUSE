@@ -2,11 +2,21 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { User, Session as AuthSession } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
+interface SignUpConsent {
+  version: string
+  acceptedAt: string // ISO timestamp
+}
+
 interface AuthContextValue {
   user: User | null
   session: AuthSession | null
   loading: boolean
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string | undefined,
+    consent: SignUpConsent
+  ) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
@@ -33,11 +43,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  async function signUp(email: string, password: string, displayName?: string) {
+  async function signUp(
+    email: string,
+    password: string,
+    displayName: string | undefined,
+    consent: SignUpConsent
+  ) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: displayName ? { data: { display_name: displayName } } : undefined
+      options: {
+        data: {
+          ...(displayName ? { display_name: displayName } : {}),
+          consent_version: consent.version,
+          consent_accepted_at: consent.acceptedAt
+        }
+      }
     })
     return { error: error?.message ?? null }
   }
