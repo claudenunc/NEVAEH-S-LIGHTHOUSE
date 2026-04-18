@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Session } from '../lib/types'
 
 export default function Journey() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -47,16 +47,29 @@ export default function Journey() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8 sm:py-12">
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="min-h-screen">
+      {/* Top nav — consistent with Session page */}
+      <header className="glass border-b border-border-subtle px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+        <Link to="/" className="font-display font-light tracking-[0.1em] text-sm glow-text">
+          NEVAEH
+        </Link>
+        <nav className="flex items-center gap-2 text-xs">
+          <Link to="/session" className="btn-ghost">Session</Link>
+          <button onClick={() => signOut()} className="btn-ghost text-text-muted">Sign out</button>
+        </nav>
+      </header>
+
+      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12 space-y-8">
         <header className="space-y-2">
-          <Link to="/session" className="text-text-secondary hover:text-text-primary text-sm">← Back to session</Link>
           <h1 className="font-display text-3xl">Your journey</h1>
           <p className="text-text-secondary text-sm">
             {sessions.length === 0
               ? 'No completed sessions yet. After your first session ends, it will live here.'
               : `${sessions.length} session${sessions.length === 1 ? '' : 's'} held.`}
           </p>
+          {user?.email && (
+            <p className="text-xs text-text-muted">Signed in as {user.email}</p>
+          )}
         </header>
 
         {anchors.length > 0 && (
@@ -151,3 +164,5 @@ export default function Journey() {
     </div>
   )
 }
+
+// (main max-w wrapper closed above)
