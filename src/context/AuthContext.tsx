@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import type { User, Session as AuthSession } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
@@ -23,44 +23,67 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+async function postAuthEvent(accessToken: string, event: 'signup' | 'signin') {
+  // Fire-and-forget — never throw, never bubble errors to the UI.
+  try {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-event`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ event })
+    })
+  } catch {
+    // intentional: notifications must not break auth UX
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Hint set when the user explicitly calls signUp/signIn from our wrappers.
+  // The actual notification fires from onAuthStateChange (which catches
+  // both auto-signed-up users AND email-confirmation-flow signins).
+  const pendingAuthHint = useRef<'signup' | 'signin' | null>(null)
+
+  // Dedupe — we only want to notify ONCE per user_id per page load,
+  // not on every token refresh / tab focus event Supabase fires.
+  const notifiedUserIds = useRef<Set<string>>(new Set())
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setUser(data.session?.user ?? null)
+      // Mark existing session as already-notified so a page reload doesn't ping Nathan.
+      if (data.session?.user?.id) {
+        notifiedUserIds.current.add(data.session.user.id)
+      }
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession)
       setUser(newSession?.user ?? null)
+
+      // Only fire on genuine SIGNED_IN events with a fresh session.
+      // Skip INITIAL_SESSION (page load with existing session) and TOKEN_REFRESHED.
+      if (event === 'SIGNED_IN' && newSession?.user?.id && newSession.access_token) {
+        const userId = newSession.user.id
+        if (notifiedUserIds.current.has(userId)) return
+        notifiedUserIds.current.add(userId)
+
+        const hint = pendingAuthHint.current ?? 'signin'
+        pendingAuthHint.current = null
+        postAuthEvent(newSession.access_token, hint)
+      }
     })
 
     return () => listener.subscription.unsubscribe()
   }, [])
-
-  async function notifyAuthEvent(event: 'signup' | 'signin') {
-    // Fire-and-forget — never block the user or bubble errors.
-    try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      if (!currentSession) return
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-event`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${currentSession.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({ event })
-      })
-    } catch {
-      // Notification failures must never break sign-in/sign-up.
-    }
-  }
 
   async function signUp(
     email: string,
@@ -68,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName: string | undefined,
     consent: SignUpConsent
   ) {
+    pendingAuthHint.current = 'signup'
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -79,13 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     })
-    if (!error) notifyAuthEvent('signup')
+    if (error) pendingAuthHint.current = null
     return { error: error?.message ?? null }
   }
 
   async function signIn(email: string, password: string) {
+    pendingAuthHint.current = 'signin'
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (!error) notifyAuthEvent('signin')
+    if (error) pendingAuthHint.current = null
     return { error: error?.message ?? null }
   }
 
