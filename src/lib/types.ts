@@ -43,6 +43,14 @@ export interface CrisisScanResult {
   matches: string[]
 }
 
+export interface VoiceFeatures {
+  energy: 'low' | 'moderate' | 'high' | 'dysregulated'
+  rate: 'slow' | 'normal' | 'fast'
+  pauses: number
+  pitch_variance: 'flat' | 'normal' | 'variable'
+  duration_ms: number
+}
+
 export interface NevaehContext {
   user_id: string
   display_name?: string

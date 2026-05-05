@@ -33,6 +33,28 @@ function decodeJwtSub(authHeader: string): { userId: string | null; reason?: str
   }
 }
 
+const FORMULATION_MODEL = 'claude-haiku-4-5-20251001'
+
+const FORMULATION_PROMPT = `You are a clinical case conceptualizer for NEVAEH'S LIGHTHOUSE. You receive a session summary and the user's prior formulation (if any), and update the clinical formulation.
+
+Return ONLY valid JSON with this exact shape — no preamble, no markdown fences:
+
+{
+  "presenting_concerns": "brief statement of what brings them here (update based on new info)",
+  "core_patterns": "recurring emotional/behavioral patterns observed across sessions",
+  "strengths": "genuine strengths and resources you have seen",
+  "working_hypothesis": "your current clinical hypothesis about what is underneath",
+  "what_has_helped": "approaches and moments that have landed well",
+  "what_has_not_helped": "what has not resonated or has backfired",
+  "next_focus": "one thread to carry into the next session"
+}
+
+Rules:
+- Do not invent patterns that were not present.
+- Preserve prior formulation entries unless this session gives reason to update them.
+- Be specific. Generic entries are useless to the clinician reading this.
+- Output ONLY the JSON object.`
+
 const SUMMARIZER_PROMPT = `You are the session summarizer for NEVAEH'S LIGHTHOUSE. You read the full conversation between NEVAEH (an AI emotional companion) and a user, and output a structured JSON summary.
 
 Your job: capture what happened emotionally, thematically, and therapeutically — not just what was said. Write human summaries that a future NEVAEH can use to continue the relationship.
@@ -194,6 +216,64 @@ Deno.serve(async (req: Request) => {
         .from('growth_arc')
         .update({ arc: updatedArc, last_rebuilt_at: new Date().toISOString() })
         .eq('user_id', user.id)
+    }
+
+    // Update clinical formulation — evolving case conceptualization per user.
+    // Uses Haiku (cheaper model, simpler task). Non-fatal if it fails.
+    if (conversation.length >= 2) {
+      try {
+        // Fetch prior formulation (null on first session)
+        const { data: priorFormulation } = await supabase
+          .from('formulation')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        const formulationUserContent = [
+          `SESSION SUMMARY:\n${JSON.stringify(summary, null, 2)}`,
+          priorFormulation
+            ? `PRIOR FORMULATION:\n${JSON.stringify(priorFormulation, null, 2)}`
+            : 'PRIOR FORMULATION: none (this is the first session)'
+        ].join('\n\n')
+
+        const formulationResp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: FORMULATION_MODEL,
+            max_tokens: 1024,
+            system: FORMULATION_PROMPT,
+            messages: [{ role: 'user', content: formulationUserContent }]
+          })
+        })
+
+        if (formulationResp.ok) {
+          const fData = await formulationResp.json()
+          const fText = fData.content?.[0]?.type === 'text' ? fData.content[0].text : ''
+          const fMatch = fText.match(/\{[\s\S]*\}/)
+          if (fMatch) {
+            const fFields = JSON.parse(fMatch[0])
+            const nextVersion = (priorFormulation?.version ?? 0) + 1
+            await supabase
+              .from('formulation')
+              .upsert(
+                {
+                  user_id: user.id,
+                  version: nextVersion,
+                  ...fFields,
+                  last_updated_at: new Date().toISOString()
+                },
+                { onConflict: 'user_id' }
+              )
+          }
+        }
+      } catch (fErr) {
+        console.error('formulation update error (non-fatal)', fErr)
+      }
     }
 
     return new Response(

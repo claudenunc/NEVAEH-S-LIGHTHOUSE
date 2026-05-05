@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Session from './pages/Session'
 import Journey from './pages/Journey'
+import Moments from './pages/Moments'
 import Crisis from './pages/Crisis'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
@@ -37,6 +38,10 @@ export default function App() {
           <Route
             path="/journey"
             element={<ProtectedRoute><Journey /></ProtectedRoute>}
+          />
+          <Route
+            path="/moments"
+            element={<ProtectedRoute><Moments /></ProtectedRoute>}
           />
           <Route
             path="/settings"

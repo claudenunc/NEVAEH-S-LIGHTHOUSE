@@ -100,3 +100,73 @@ export function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
   const order: RiskLevel[] = ['none', 'yellow', 'orange', 'red']
   return order.indexOf(b) > order.indexOf(a) ? b : a
 }
+
+// Historical / artistic content markers.
+//
+// When a user shares their biography, song lyrics, a poem, or reflects on
+// the past, crisis words can show up without representing current ideation.
+// Treating such content as a live emergency gets the clinical story wrong
+// and harms the user by locking their session into safety-only forever.
+//
+// If a message has two or more historical markers AND any crisis match,
+// we STILL surface resources once, but we do NOT flip the session's
+// entered_red / entered_orange flags. The conversation continues normally.
+
+const HISTORICAL_MARKERS: RegExp[] = [
+  // temporal past
+  /\b(?:\d+|two|three|four|five|six|seven|eight|nine|ten|many)\s+(?:years?|months?|decades?)\s+ago\b/i,
+  /\bback\s+(?:then|in\s+(?:19|20)\d{2}|when\s+i\s+was)\b/i,
+  /\bwhen\s+i\s+was\s+(?:young|a\s+(?:kid|teen|teenager|child)|\d+|in\s+(?:high\s*school|college|the\s+hospital))\b/i,
+  /\bi\s+used\s+to\s+(?:feel|think|believe|want|try|cut|drink|use|be|struggle)\b/i,
+  /\bin\s+(?:19|20)\d{2}\s+i\b/i,
+  /\bas\s+a\s+(?:kid|teen|teenager|child|young\s+man|young\s+woman)\b/i,
+  /\bbefore\s+(?:i\s+got\s+help|therapy|recovery|sober|i\s+got\s+better)\b/i,
+  /\b(?:at\s+my\s+worst|lowest\s+point|darkest\s+(?:time|year|period|chapter))\b/i,
+
+  // explicit past-tense suicidality framing (the hardest category)
+  /\bi\s+(?:used\s+to|once)\s+(?:want(?:ed)?|tried)\s+to\s+(?:die|kill\s+myself|end\s+it)\b/i,
+  /\bi\s+(?:have|had)\s+(?:tried|attempted|been\s+suicidal)\s+(?:before|in\s+the\s+past)\b/i,
+  /\bi\s+almost\s+(?:died|killed\s+myself|didn'?t\s+make\s+it)\b/i,
+  /\bi\s+survived\s+(?:a\s+suicide\s+attempt|that|it)\b/i,
+  /\bthere\s+was\s+a\s+time\s+when\s+i\b/i,
+
+  // biographical / artistic structure markers
+  /^#{1,3}\s+(?:THE|MY|OUR|A)\s+/m,                               // H1/H2/H3 bio heading
+  /\bmy\s+(?:story|biography|bio|memoir|journey)\b/i,
+  /\bchapter\s+\d+\b/i,
+  /^(?:verse|chorus|bridge|outro|intro)\s*[:\d]/im,               // song section markers
+  /\b(?:these\s+are\s+lyrics|wrote\s+this\s+(?:song|poem|story))\b/i,
+  /\bfrom\s+(?:my|the)\s+(?:book|manuscript|song|album|poem)\b/i,
+
+  // recovery / retrospective framing
+  /\b(?:i'?m|im)\s+(?:in\s+recovery|okay\s+now|past\s+that|not\s+there\s+anymore|better\s+now|healed|past\s+it)\b/i,
+  /\bthat\s+(?:was|chapter|version\s+of\s+me)\s+(?:is\s+)?(?:behind\s+me|in\s+the\s+past|over|done|closed)\b/i,
+  /\bi'?ve\s+come\s+a\s+long\s+way\b/i,
+]
+
+export function detectHistoricalContext(message: string): { isHistorical: boolean; markerCount: number; matches: string[] } {
+  const hits = HISTORICAL_MARKERS.filter((p) => p.test(message))
+  return {
+    isHistorical: hits.length >= 2,
+    markerCount: hits.length,
+    matches: hits.map((r) => r.source)
+  }
+}
+
+// Self-dismissal commands — user telling the system they're okay.
+// If a standalone message matches, we clear session flags and let them continue.
+
+const DISMISSAL_PATTERNS: RegExp[] = [
+  /^\s*\/(?:okay|ok|safe|reset|clear|good|fine)\s*$/i,
+  /^\s*i'?m\s+(?:okay|ok|safe|fine|good|not\s+in\s+crisis)\s*\.?\s*$/i,
+  /^\s*(?:im|i\s+am)\s+(?:okay|ok|safe|fine|good)\s*\.?\s*$/i,
+  /^\s*that\s+(?:was|is)\s+(?:in\s+the\s+)?past\s*\.?\s*$/i,
+  /^\s*(?:reset|clear)\s+(?:the\s+)?crisis\s*(?:mode|flag|state)?\s*\.?\s*$/i,
+]
+
+export function isDismissal(message: string): boolean {
+  // Only match if the ENTIRE message is a dismissal, not a passing mention.
+  const trimmed = message.trim()
+  if (trimmed.length > 80) return false  // too long to be just a dismissal
+  return DISMISSAL_PATTERNS.some((p) => p.test(trimmed))
+}
