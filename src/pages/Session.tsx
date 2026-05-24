@@ -24,6 +24,7 @@ export default function Session() {
     localStorage.getItem('nevaeh_voice_consent') === 'true'
   )
   const [showVoiceConsent, setShowVoiceConsent] = useState(false)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -342,7 +343,9 @@ export default function Session() {
         <Link to="/" className="font-display font-light tracking-[0.1em] text-sm glow-text">
           NEVAEH
         </Link>
-        <nav className="flex items-center gap-2 text-xs">
+
+        {/* Desktop nav: all items inline */}
+        <nav className="hidden sm:flex items-center gap-2 text-xs">
           <Link to="/journey" className="btn-ghost">Journey</Link>
           <Link to="/moments" className="btn-ghost">Moments</Link>
           <Link to="/settings" className="btn-ghost">Settings</Link>
@@ -351,6 +354,65 @@ export default function Session() {
           </button>
           <button onClick={() => signOut()} className="btn-ghost text-text-muted">Sign out</button>
         </nav>
+
+        {/* Mobile nav: End session always visible, rest behind a menu */}
+        <div className="flex sm:hidden items-center gap-2 text-xs">
+          <button
+            onClick={handleEnd}
+            disabled={ending || messages.length < 2}
+            className="btn-ghost"
+          >
+            {ending ? 'Closing...' : 'End'}
+          </button>
+          <button
+            onClick={() => setNavMenuOpen(v => !v)}
+            aria-label="More options"
+            aria-expanded={navMenuOpen}
+            className="btn-ghost px-3"
+          >
+            ⋯
+          </button>
+        </div>
+
+        {/* Mobile menu dropdown */}
+        {navMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30 sm:hidden"
+              onClick={() => setNavMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute right-3 top-full mt-1 z-40 glass border border-border-subtle rounded-xl py-2 min-w-[10rem] shadow-xl sm:hidden">
+              <Link
+                to="/journey"
+                onClick={() => setNavMenuOpen(false)}
+                className="block px-4 py-2 text-sm hover:bg-white/5"
+              >
+                Journey
+              </Link>
+              <Link
+                to="/moments"
+                onClick={() => setNavMenuOpen(false)}
+                className="block px-4 py-2 text-sm hover:bg-white/5"
+              >
+                Moments
+              </Link>
+              <Link
+                to="/settings"
+                onClick={() => setNavMenuOpen(false)}
+                className="block px-4 py-2 text-sm hover:bg-white/5"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={() => { setNavMenuOpen(false); signOut() }}
+                className="block w-full text-left px-4 py-2 text-sm text-text-muted hover:bg-white/5"
+              >
+                Sign out
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Messages */}

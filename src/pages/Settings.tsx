@@ -113,8 +113,11 @@ export default function Settings() {
               type="button"
               onClick={handleDelete}
               disabled={deleting || confirmText !== 'DELETE MY ACCOUNT'}
-              className="btn-primary w-full"
-              style={{ background: confirmText === 'DELETE MY ACCOUNT' ? undefined : '', opacity: confirmText === 'DELETE MY ACCOUNT' ? 1 : 0.5 }}
+              className={`btn-primary w-full transition-colors ${
+                confirmText === 'DELETE MY ACCOUNT'
+                  ? '!bg-red-600 hover:!bg-red-700 !text-white !border-red-700 shadow-lg shadow-red-900/30'
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
             >
               {deleting ? 'Deleting everything...' : 'Delete my account and all my data'}
             </button>

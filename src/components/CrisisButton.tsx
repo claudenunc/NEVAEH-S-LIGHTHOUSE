@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { CRISIS_RESOURCES } from '../lib/crisisKeywords'
 
 export default function CrisisButton() {
@@ -61,13 +61,13 @@ export default function CrisisButton() {
                 </li>
               ))}
             </ul>
-            <a
-              href="/crisis"
-              className="btn-ghost w-full mt-4 text-sm"
+            <Link
+              to="/crisis"
+              className="btn-ghost w-full mt-4 text-sm block text-center"
               onClick={() => setOpen(false)}
             >
               See all resources →
-            </a>
+            </Link>
           </div>
         </div>
       )}

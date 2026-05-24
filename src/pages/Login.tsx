@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 // Bump when Terms/Privacy change materially. Must match server-side trigger acceptance.
 const CONSENT_VERSION = 'v1-2026-04-17'
@@ -16,6 +17,27 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [sendingReset, setSendingReset] = useState(false)
+
+  async function handleForgotPassword() {
+    setError(null)
+    setNotice(null)
+    if (!email.trim()) {
+      setError('Type your email above first, then click "Forgot password?" again.')
+      return
+    }
+    setSendingReset(true)
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: false }
+    })
+    setSendingReset(false)
+    if (err) {
+      setError(err.message ?? 'Could not send the magic link. Please try again.')
+      return
+    }
+    setNotice('Check your email — a magic link is on the way. Click it to sign in, then change your password from Settings if you want.')
+  }
 
   useEffect(() => {
     if (user) navigate('/session', { replace: true })
@@ -180,6 +202,17 @@ export default function Login() {
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Opening...' : mode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
+
+            {mode === 'signin' && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={sendingReset}
+                className="btn-ghost w-full text-xs text-text-secondary"
+              >
+                {sendingReset ? 'Sending magic link...' : 'Forgot password? Email me a magic link'}
+              </button>
+            )}
 
             {mode === 'signup' && (
               <button
