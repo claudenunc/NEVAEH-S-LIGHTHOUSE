@@ -9,6 +9,7 @@ import Crisis from './pages/Crisis'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import Settings from './pages/Settings'
+import Donate from './pages/Donate'
 import CrisisButton from './components/CrisisButton'
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -48,6 +49,7 @@ export default function App() {
             element={<ProtectedRoute><Settings /></ProtectedRoute>}
           />
           <Route path="/crisis" element={<Crisis />} />
+          <Route path="/donate" element={<Donate />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="*" element={<Navigate to="/" replace />} />

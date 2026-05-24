@@ -39,6 +39,7 @@ export default function Landing() {
             <>
               <Link to="/login" className="btn-primary">Begin</Link>
               <Link to="/crisis" className="btn-ghost">In crisis right now?</Link>
+              <Link to="/donate" className="btn-ghost text-text-muted text-sm">Keep the light on ↗</Link>
             </>
           )}
         </div>
