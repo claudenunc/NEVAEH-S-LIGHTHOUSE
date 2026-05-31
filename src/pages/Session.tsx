@@ -36,6 +36,7 @@ export default function Session() {
   const silenceStartRef = useRef<number | null>(null)
   const recordingStartRef = useRef<number>(0)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -45,6 +46,15 @@ export default function Session() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, thinking])
+
+  // Auto-grow the message box with its contents (typing, voice transcript,
+  // or clearing after send), capped so it never swallows the screen.
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`
+  }, [input])
 
   async function initSession() {
     setInitializing(true)
@@ -161,8 +171,8 @@ export default function Session() {
     }
   }
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSend(e?: React.FormEvent | React.KeyboardEvent) {
+    e?.preventDefault()
     const content = input.trim()
     if (!content || !sessionId || sending) return
 
@@ -460,14 +470,23 @@ export default function Session() {
 
       {/* Input */}
       <form onSubmit={handleSend} className="glass border-t border-border-subtle px-4 py-3 sticky bottom-0 z-20">
-        <div className="max-w-2xl mx-auto flex gap-2">
-          <input
-            type="text"
+        <div className="max-w-2xl mx-auto flex gap-2 items-end">
+          <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Say what's true..."
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter inserts a newline so longer messages
+              // can be written and edited without firing early.
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend(e)
+              }
+            }}
+            rows={1}
+            placeholder="Say what's true... (Shift+Enter for a new line)"
             disabled={sending || thinking}
-            className="input-field flex-1"
+            className="input-field flex-1 resize-none overflow-y-auto leading-relaxed"
             autoComplete="off"
             aria-label="Your message"
           />
